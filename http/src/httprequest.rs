@@ -95,8 +95,16 @@ fn process_req_line(line: &str) -> (Version, Method, Resource) {
 }
 
 fn process_header_line(line: &str) -> (String, String) {
-    let key_value: Vec<&str> = line.split(":").collect();
-    (key_value[0].to_string(), key_value[1].to_string())
+    let mut iter = line.split(":").into_iter();
+    let mut key = String::from("");
+    let mut value = String::from("");
+    if let Some(s) = iter.next() {
+        key = s.to_string()
+    };
+    if let Some(s) = iter.next() {
+        value = s.to_string()
+    };
+    (key, value)
 }
 
 #[cfg(test)]
@@ -117,18 +125,12 @@ mod test {
 
     #[test]
     fn test_http_request_into() {
-        let http_request: HttpRequest = String::from("HTTP/1.1 GET /hello\n123\nfoo:bar").into();
+        let req: HttpRequest = String::from("HTTP/1.1 GET /hello\n123\nfoo:bar").into();
         let mut headers = HashMap::new();
         headers.insert("foo".to_string(), "bar".to_string());
-        assert_eq!(
-            http_request,
-            HttpRequest {
-                method: Method::GET,
-                version: Version::V1_1,
-                msg_body: "123".to_string(),
-                resource: Resource::Path(String::from("/hello")),
-                headers: headers
-            }
-        )
+        assert_eq!(headers, req.headers);
+        assert_eq!(Method::GET, req.method);
+        assert_eq!(Version::V1_1, req.version);
+        assert_eq!(Resource::Path(String::from("/hello")), req.resource);
     }
 }
