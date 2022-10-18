@@ -50,18 +50,18 @@ pub struct HttpRequest {
 
 impl From<String> for HttpRequest {
     fn from(req: String) -> Self {
-        let mut parsed_version = Version::Uninitialized;
         let mut parsed_method = Method::Uninitialized;
         let mut parsed_resource = Resource::Path("".to_string());
+        let mut parsed_version = Version::Uninitialized;
         let mut parsed_headers = HashMap::new();
         let mut parsed_msg_body = "".to_string();
 
         for line in req.lines() {
             if line.contains("HTTP") {
-                let (version, method, resource) = process_req_line(line);
-                parsed_version = version;
+                let (method, resource, version) = process_req_line(line);
                 parsed_method = method;
                 parsed_resource = resource;
+                parsed_version = version;
             } else if line.is_empty() {
                 continue;
             } else if line.contains(":") {
@@ -82,15 +82,15 @@ impl From<String> for HttpRequest {
     }
 }
 
-fn process_req_line(line: &str) -> (Version, Method, Resource) {
+fn process_req_line(line: &str) -> (Method, Resource, Version) {
     let mut iter = line.split_whitespace();
-    let version = iter.next().unwrap();
     let method = iter.next().unwrap();
     let resource = iter.next().unwrap();
+    let version = iter.next().unwrap();
     (
-        version.into(),
         method.into(),
         Resource::Path(resource.to_string()),
+        version.into(),
     )
 }
 
@@ -125,12 +125,21 @@ mod test {
 
     #[test]
     fn test_http_request_into() {
-        let req: HttpRequest = String::from("HTTP/1.1 GET /hello\n123\nfoo:bar").into();
-        let mut headers = HashMap::new();
-        headers.insert("foo".to_string(), "bar".to_string());
-        assert_eq!(headers, req.headers);
+        let req: HttpRequest = String::from(
+            "GET /api/user/1 HTTP/1.1
+Accept: application/json, text/plain, */*
+Cache-Control: no-cache
+Connection: keep-alive
+Host: 127.0.0.1",
+        )
+        .into();
+
+        assert!(req.headers.contains_key("Accept"));
+        assert!(req.headers.contains_key("Cache-Control"));
+        assert!(req.headers.contains_key("Connection"));
+        assert!(req.headers.contains_key("Host"));
         assert_eq!(Method::GET, req.method);
         assert_eq!(Version::V1_1, req.version);
-        assert_eq!(Resource::Path(String::from("/hello")), req.resource);
+        assert_eq!(Resource::Path(String::from("/api/user/1")), req.resource);
     }
 }
